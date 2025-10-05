@@ -1,3 +1,6 @@
+import multiprocessing as mp
+mp.set_start_method("spawn", force=True)
+
 import numpy as np
 import cupy as cp
 
@@ -29,8 +32,7 @@ def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
         regularization paramater
 
     """
- 
-
+    
     nf = data.shape[0]
     nreg = sigmaa.shape[0]
 
@@ -61,18 +63,17 @@ def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
     
     arg_gpu = cp.empty((nf, nmu)) # allocate result
     
-    coef_gpu = data_gpu @ U_gpu.T 
-    sa2 = sigmab_gpu ** 2
-    sb2 = sigmab_gpu ** 2
+    coef_gpu = data_gpu @ U_gpu.T
+    sa2_gpu = sigmab_gpu ** 2
+    sb2_gpu = sigmab_gpu ** 2
 
-        
     for ii in range(nmu):
-        top = mu_gpu[ii] * sb2 * coef_gpu
-        bot = sa2 + mu_gpu[ii] * sb2
+        top = mu_gpu[ii] * sb2_gpu * coef_gpu
+        bot = sa2_gpu + mu_gpu[ii] * sb2_gpu
 
         arg_gpu[:,ii] = (top / bot) ** 2
             
-    discr = np.sum(arg, axis=0) - np.sum(err **2) * reg_tweak
+    discr = cp.sum(arg_gpu, axis=0).get() - np.sum(err **2) * reg_tweak
   
     opt = mu[np.argmin(np.abs(discr))]
     # print(opt)
