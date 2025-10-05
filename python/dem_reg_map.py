@@ -1,4 +1,5 @@
 import numpy as np
+import cupy as cp
 
 def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
     """
@@ -49,27 +50,29 @@ def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
     step = (np.log(maxx) - np.log(minx)) / (nmu - 1.)
     mu = np.exp(np.arange(nmu) * step) * minx
 
-    coef = data @ U.T   # shape: (d,) @ (nf, d)
-    sa2 = sigmaa ** 2
-    sb2 = sigmab ** 2
-    
-    for kk in np.arange(nf):
-       # coef = data @ U[kk,:]
+    data_gpu = cp.asarray(data)
+    U_gpu = cp.asarray(U)
+    mu_gpu = cp.asarray(mu)
+    sigmab_gpu = cp.asarray(sigmab)
+    sigmaa_gpu = cp.asarray(sigmaa)
 
-     #   sa2 = sigmaa[kk] ** 2
-     #   sb2 = sigmab[kk] ** 2
+    nf = U_gpu.shape[0]
+    nmu = mu_gpu.shape[0]
+    
+    arg_gpu = cp.empty((nf, nmu)) # allocate result
+    
+    coef_gpu = data_gpu @ U_gpu.T 
+    sa2 = sigmab_gpu ** 2
+    sb2 = sigmab_gpu ** 2
+
         
-        for ii in np.arange(nmu):
-            top = mu[ii] * sb2 * coef
-            bot = sa2 + mu[ii] * sb2
+    for ii in range(nmu):
+        top = mu_gpu[ii] * sb2 * coef_gpu
+        bot = sa2 + mu_gpu[ii] * sb2
 
-            arg[:,ii] = (top / bot) ** 2
+        arg_gpu[:,ii] = (top / bot) ** 2
             
-         #   arg[kk,ii] = (mu[ii] * sigmab[kk] ** 2 * coef / (sigmaa[kk] ** 2 + mu[ii] * sigmab[kk] ** 2)) ** 2
-    
     discr = np.sum(arg, axis=0) - np.sum(err **2) * reg_tweak
-
-     
   
     opt = mu[np.argmin(np.abs(discr))]
     # print(opt)
