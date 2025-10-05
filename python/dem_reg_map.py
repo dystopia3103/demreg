@@ -64,7 +64,7 @@ def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
     arg_gpu = cp.empty((nf, nmu)) # allocate result
     
     coef_gpu = data_gpu @ U_gpu.T
-    sa2_gpu = sigmab_gpu ** 2
+    sa2_gpu = sigmaa_gpu ** 2
     sb2_gpu = sigmab_gpu ** 2
 
     for ii in range(nmu):
