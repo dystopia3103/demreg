@@ -1,6 +1,7 @@
 import numpy as np
 
 def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
+    return dem_reg_map_vectorized(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500)
     """
     dem_reg_map
     computes the regularization parameter
@@ -57,5 +58,33 @@ def dem_reg_map(sigmaa,sigmab,U,W,data,err,reg_tweak,nmu=500):
   
     opt=mu[np.argmin(np.abs(discr))]
     # print(opt)
+
+    return opt
+
+def dem_reg_map_vectorized(sigmaa, sigmab, U, W, data, err, reg_tweak, nmu=500):
+    nf = data.shape[0]
+
+    sigs = sigmaa[:nf] / sigmab[:nf]
+
+    maxx = np.max(sigs)
+    minx = np.min(sigs) ** 2.0 * 1E-4
+    step = (np.log(maxx) - np.log(minx)) / (nmu - 1.)
+    mu = np.exp(np.arange(nmu) * step) * minx
+
+    # Vectorized computation
+    coef = data @ U[:nf, :].T
+
+    mu_2d = mu[np.newaxis, :]
+    sigmaa_2d = sigmaa[:nf, np.newaxis]
+    sigmab_2d = sigmab[:nf, np.newaxis]
+    coef_2d = coef[:, np.newaxis]
+
+    numerator = mu_2d * sigmab_2d ** 2 * coef_2d
+    denominator = sigmaa_2d ** 2 + mu_2d * sigmab_2d ** 2
+    arg = (numerator / denominator) ** 2
+
+    discr = np.sum(arg, axis=0) - np.sum(err ** 2) * reg_tweak
+
+    opt = mu[np.argmin(np.abs(discr))]
 
     return opt
